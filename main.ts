@@ -28,12 +28,26 @@ try {
 }
 
 // The gate reads /output/POST.json, so confirm the copy is a JSON object naming one post address.
+let postUrl = '';
 try {
-  const parsed: unknown = JSON.parse(readFileSync(outPath, 'utf8'));
-  if (typeof parsed !== 'object' || parsed === null || typeof (parsed as { url?: unknown }).url !== 'string') {
+  const parsed: { url?: unknown } = JSON.parse(readFileSync(outPath, 'utf8'));
+  if (typeof parsed !== 'object' || parsed === null || typeof parsed.url !== 'string') {
     throw new Error('POST.json must be a JSON object with a string "url" field');
   }
+  postUrl = parsed.url;
 } catch (err) {
   console.error(`POST.json is not usable: ${err instanceof Error ? err.message : String(err)}`);
+  process.exit(1);
+}
+
+// The gate reads the post from X, so the address must name an X post, not any other page:
+// https://x.com/<handle>/status/<id> (or twitter.com). A non-X address is refused here
+// instead of failing silently at the gate.
+if (!postUrl.startsWith('https://x.com/') && !postUrl.startsWith('https://twitter.com/')) {
+  console.error(`POST.json "url" must start with https://x.com/ or https://twitter.com/, got: ${postUrl}`);
+  process.exit(1);
+}
+if (!postUrl.includes('/status/')) {
+  console.error(`POST.json "url" must name an X post (contain /status/), got: ${postUrl}`);
   process.exit(1);
 }
